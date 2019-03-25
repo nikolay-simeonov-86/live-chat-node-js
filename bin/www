@@ -1,0 +1,166 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('live-broadcasting-javascript:server');
+var socket = require('socket.io');
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = app.listen(3000, function () {
+  console.log('listening 3000');
+});
+
+// File writing
+var fs = require('fs');
+function writeInFile(filePath, data, flag) {
+    fs.writeFile(filePath, data, {flag: flag},function(err) {
+        if(err) {
+            return console.log(err);
+        }
+        return true;
+    });
+}
+
+// Object flip
+function objectFlip(obj) {
+    const ret = {};
+    Object.keys(obj).forEach((key) => {
+        ret[obj[key]] = key;
+    });
+    return ret;
+}
+
+// Socket setup
+var io = socket(server);
+var usersConnected = [];
+
+io.on('connection', function (socket) {
+    console.log('New user with ID: ' + socket.id + ' has connected');
+
+    socket.on('disconnect', function () {
+        var reversedUsersConnected = objectFlip(usersConnected);
+        if ('undefined' != typeof reversedUsersConnected[socket.id]) {
+            io.emit('disconnect', 'user ' + reversedUsersConnected[socket.id] + ' disconnected');
+        }
+    });
+    socket.on('add-user', function (data) {
+        usersConnected[data.username] = socket.id;
+        socket.broadcast.emit('user-joined', 'user ' + data.username + ' joined');
+    });
+    socket.on('chat', function (data) {
+        var stringSize = Buffer.byteLength(JSON.stringify(data), 'utf8');
+        var flag = 'w';
+        var filePath = __dirname + '\\logs\\' + data.username +'-last-message-log.txt';
+        if (stringSize <= 100) {
+            writeInFile(filePath, JSON.stringify(data), flag);
+        } else {
+            console.log('Message is too long!')
+        }
+        io.sockets.emit('chat', data);
+    });
+    socket.on('broadcasting', function(data){
+        var stringSize = Buffer.byteLength(JSON.stringify(data), 'utf8');
+        var flag = 'w';
+        var filePath = __dirname + '\\logs\\' + data.username +'-last-message-log.txt';
+        if (stringSize <= 100) {
+            writeInFile(filePath, JSON.stringify(data), flag);
+        } else {
+            console.log('Message is too long!')
+        }
+        socket.broadcast.emit('broadcasting', data);
+    });
+    socket.on('send-to-user', function(data){
+        var stringSize = Buffer.byteLength(JSON.stringify(data), 'utf8');
+        var flag = 'w';
+        var filePath = __dirname + '\\logs\\' + data.myUsername +'-last-message-log.txt';
+        if (stringSize <= 100) {
+            writeInFile(filePath, JSON.stringify(data), flag);
+        } else {
+            console.log('Message is too long!')
+        }
+        io.to(usersConnected[data.username]).emit('send-to-user', data);
+    });
+    socket.on('confirmation', function (data) {
+        io.to(usersConnected[data]).emit('confirmation', data);
+    })
+});
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.on('error', onError);
+server.on('listening', onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+}

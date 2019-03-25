@@ -1,0 +1,23 @@
+{% extends 'layout.twig' %}
+
+{% block body %}
+  <div id="mario-chat">
+    <div id="choose-username">
+      <input id="choose-username-input" type="text" placeholder="Choose username">
+      <button id="choose-username-button">Choose</button>
+    </div>
+    <div id="chat-fields">
+      <h2>Welcome <span id="my-username"></span></h2>
+      <h2 id="chat-room">Chat room</h2>
+      <div id="snackbar">Message sent</div>
+      <div id="chat-window">
+        <div id="output"></div>
+      </div>
+      <input id="username" type="text" placeholder="Receiver" />
+      <textarea id="message" placeholder="Message"></textarea>
+      <button id="send-to-user">Send to user</button>
+      <button id="send">Send to all</button>
+      <button id="broadcast">Broadcast</button>
+    </div>
+  </div>
+{% endblock %}
